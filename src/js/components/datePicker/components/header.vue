@@ -17,6 +17,7 @@
 
   </header>
 </template>
+
 <script>
 module.exports = {
   name: 'date-pick-header',

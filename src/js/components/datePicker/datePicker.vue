@@ -24,6 +24,7 @@
       <pick-year
         v-if="toSelectYear"
         :year-arr="yearArr"
+        :current.sync="currentDate"
         :selected-date.sync="selectedDate"></pick-year>
 
       <date-footer></date-footer>
