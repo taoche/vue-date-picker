@@ -1,33 +1,40 @@
 <template>
-  <div class="date-picker">
-    <div class="mask"></div>
+  <div class="date-picker" v-if="show" transition="date">
 
-    <div class="date-picker-calendar">
-      <date-header
-        :change-select-type.sync="toSelectYear"
-        :selected-info="selectedInfo"></date-header>
+    <div class="date-picker-wrapper">
+      <div class="date-picker-container">
 
-      <div class="main" v-if="!toSelectYear">
-        <pick-month
-        :min-date="minDate"
-        :max-date="maxDate"
-        :current-info.sync="currentInfo"
-        :current.sync="currentDate"></pick-month>
+        <!-- DatePick header -->
+        <date-header
+          :change-select-type.sync="toSelectYear"
+          :selected-info="selectedInfo"></date-header>
 
-        <pick-date
+        <!-- DatePick main select month and date -->
+        <div class="main" v-if="!toSelectYear">
+          <pick-month
           :min-date="minDate"
           :max-date="maxDate"
+          :current-info.sync="currentInfo"
+          :current.sync="currentDate"></pick-month>
+
+          <pick-date
+            :min-date="minDate"
+            :max-date="maxDate"
+            :current.sync="currentDate"
+            :selected-date.sync="selectedDate"></pick-date>
+        </div>
+
+        <!--  select year -->
+        <pick-year
+          v-if="toSelectYear"
+          :year-arr="yearArr"
           :current.sync="currentDate"
-          :selected-date.sync="selectedDate"></pick-date>
+          :selected-date.sync="selectedDate"></pick-year>
+
+        <!-- DatePick footer -->
+        <date-footer> </date-footer>
       </div>
-
-      <pick-year
-        v-if="toSelectYear"
-        :year-arr="yearArr"
-        :selected-date.sync="selectedDate"></pick-year>
-
-      <date-footer></date-footer>
-    </div>
+    <div>
   </div>
 </template>
 
@@ -51,7 +58,10 @@ module.exports = {
         return '2115-01-01'
       }
     },
-    datePickerShow : Boolean
+    show : {
+      type:Boolean,
+      required: true
+    }
   },
 
   data() {
@@ -93,12 +103,12 @@ module.exports = {
 
   events:{
     'date-picker-hide':function(){
-      this.datePickerShow = false;
+      this.show = false;
     },
 
     'date-picker-sure':function(){
       this.selectedDateProps = this.dateFormat(this.selectedDate);
-      this.datePickerShow = false
+      this.show = false
     }
   },
 
@@ -155,33 +165,43 @@ module.exports = {
 @import '../../../styles/normalize.scss';
 
 .date-picker {
-  overflow: hidden;
+  position: fixed;
+  z-index: 999;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+  background-color: rgba(0, 0, 0, .5);
+  display: table;
+  transition: opacity .3s ease;
 
-  .mask {
-    position: absolute;
-    z-index: 998;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    top: 0;
-    background: rgba(0, 0, 0, 0.5);
+  .date-picker-wrapper {
+    display: table-cell;
+    vertical-align: middle;
+
+    .date-picker-container {
+      margin: 0 auto;
+      z-index: 999;
+      width: 320px;
+      outline: none;
+      text-align: center;
+      background: white;
+      -webkit-touch-callout: none;
+      user-select: none;
+      //font-smoothing: antialiased;
+      transition: all .3s ease;
+      box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);
+      border-radius: 2px;
+    }
   }
 
-  .date-picker-calendar {
-    position: absolute;
-    left: 0;
-    right: 0;
-    margin: auto;
-    z-index: 999;
-    width: 320px;
-    outline: none;
-    text-align: center;
-    background: white;
-    -webkit-touch-callout: none;
-    user-select: none;
-    font-smoothing: antialiased;
-    box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);
-    border-radius: 2px;
+  &.date-enter,
+  &.date-leave {
+    opacity: 0;
+
+    .date-picker-container {
+      transform: scale(1.1);
+    }
   }
 }
 </style>

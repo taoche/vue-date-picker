@@ -1,7 +1,7 @@
 <template>
   <footer class="footer">
-    <button @click="datePickerHide">取消</button>
-    <button @click="datePickersure">确定</button>
+    <button @click="datePickerHide">CANCEL</button>
+    <button @click="datePickersure">OK</button>
   </footer>
   </div>
 </template>
@@ -22,21 +22,35 @@ module.exports = {
 
 <style lang="scss">
 .footer {
-  padding: 15px 0 10px 0;
+  padding: 15px 10px 10px 10px;
+  text-align: right;
+
   button {
     border: none;
     color: red;
-    font-size: 16px;
-    color: lighten(#40b0e7, 10%);
+    color: #009688;
     background: transparent;
     cursor: pointer;
     padding: 8px 20px;
+
     &:hover {
       animation: btn-fade-in .5s ease both;
     }
+
     &:focus {
       outline: none;
     }
   }
 }
+
+
+@-webkit-keyframes btn-fade-in {
+  0% {
+    background: rgba(lighten(#009688, 5%), .1);
+  }
+  100% {
+    background: rgba(lighten(#009688, 5%), .5);
+  }
+}
+
 </style>

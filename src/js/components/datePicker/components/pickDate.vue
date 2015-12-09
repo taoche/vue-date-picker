@@ -7,8 +7,8 @@
     </thead>
 
     <tbody :class="{
-          'date-left'  : dateTransitionType=='left',
-          'date-right' : dateTransitionType=='right' }">
+          'date-left'  : dateTransitionType == 'left',
+          'date-right' : dateTransitionType == 'right' }">
 
       <tr v-for="week in calendar" transition="date">
         <td v-for="day in week"
@@ -167,18 +167,19 @@ module.exports = {
         }
 
         &.today {
-          color: rgb(0, 188, 212);
+          color: #009688;
           font-weight: bold;
         }
 
         &.selected {
-          background: #40b0e7;
+          background: #009688;
           color: #fff;
         }
 
         &:not(.selected):not(.disabled):hover {
           color: #fff;
           position: relative;
+          z-index: 1;
         }
 
         &:not(.selected):not(.disabled):hover::after {
@@ -186,7 +187,7 @@ module.exports = {
           display: block;
           animation: dateBackground .3s;
           position: absolute;
-          background: rgba(#40b0e7, .7);
+          background: rgba(#009688, .7);
           width: 36px;
           height: 36px;
           transform: translate3d(0, 0, 0);
@@ -217,15 +218,6 @@ module.exports = {
 .date-left {
   .date-enter {
     animation: dateLeft .5s;
-  }
-}
-
-@-webkit-keyframes btn-fade-in {
-  0% {
-    background: rgba(lighten(#40b0e7, 30%), .1);
-  }
-  100% {
-    background: rgba(lighten(#40b0e7, 30%), .5);
   }
 }
 

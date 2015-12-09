@@ -12,7 +12,7 @@
 <script>
 module.exports = {
   name: 'pick-year',
-  props: ['yearArr','selectedDate'],
+  props: ['yearArr','current','selectedDate'],
 
   computed:{
     selectedYear(){
@@ -34,7 +34,7 @@ module.exports = {
   methods:{
 
     changeActiveYear(year){
-      this.selectedDate = new Date(this.selectedDate.setYear(year))
+      this.current = this.selectedDate = new Date(this.selectedDate.setYear(year))
     },
 
     positionActive(){

@@ -1,14 +1,14 @@
 <template>
   <div class="select-month">
     <span class="arrow arrow-left"
-            @click="prevMonth"
-            :class="{disabled: disableControl('prevMonth')}"></span>
+      @click="prevMonth"
+      :class="{disabled: disableControl('prevMonth')}"></span>
 
     <span class="date">{{currentInfo.monthName}}  {{currentInfo.year}}</span>
 
     <span class="arrow arrow-right"
       @click="nextMonth"
-      :class="{disabled: disableControl('nextMonth')}" > </span>
+      :class="{disabled: disableControl('nextMonth')}"></span>
   </div>
 </template>
 

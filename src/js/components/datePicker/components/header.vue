@@ -17,6 +17,7 @@
 
   </header>
 </template>
+
 <script>
 module.exports = {
   name: 'date-pick-header',
@@ -70,7 +71,7 @@ module.exports = {
 
 <style lang="scss">
 .header {
-  background: #40b0e7;
+  background: #009688;
   padding: 20px;
   color: rgba(#fff, .7);
   height: 72px;
