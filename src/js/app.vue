@@ -3,8 +3,7 @@
 
     <input v-model="selectedDate" @focus="toggleShow" class="form-control">
 
-    <date-picker v-if="datePickerShow" :date-picker-show.sync="datePickerShow" :selected-date-props.sync="selectedDate"></date-picker>
-
+    <date-picker  :show.sync="datePickerShow" :selected-date-props.sync="selectedDate"></date-picker>
   </div>
 </template>
 
