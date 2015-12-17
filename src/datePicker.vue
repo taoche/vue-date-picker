@@ -32,7 +32,7 @@
           :selected-date.sync="selectedDate"></pick-year>
 
         <!-- DatePick footer -->
-        <date-footer> </date-footer>
+        <date-footer></date-footer>
       </div>
     <div>
   </div>
@@ -162,7 +162,7 @@ module.exports = {
 
 <style lang="scss">
 
-@import '../../../styles/normalize.scss';
+@import './styles/_normalize.scss';
 
 .date-picker {
   position: fixed;

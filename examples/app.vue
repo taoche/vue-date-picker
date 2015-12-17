@@ -24,7 +24,7 @@ module.exports = {
     },
   },
   components: {
-    'date-picker': require('./components/datePicker/datePicker.vue')
+    'date-picker': require('../src/datePicker.vue')
   }
 }
 </script>
