@@ -1,10 +1,10 @@
 var webpack = require('webpack')
 
 module.exports = {
-  entry: './src/js/app.js',
+  entry: './examples/app.js',
   output: {
-    path: './static',
-    publicPath: '/static/',
+    path: './examples/static',
+    publicPath: '/examples/static/',
     filename: 'build.js'
   },
   module: {
@@ -45,7 +45,6 @@ module.exports = {
 }
 
 if (process.env.NODE_ENV === 'production') {
-
   module.exports.plugins = [
     new webpack.DefinePlugin({
       'process.env': {
