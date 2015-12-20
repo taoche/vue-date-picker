@@ -1,9 +1,9 @@
 <template>
   <div class="date-picker" v-if="show" transition="date">
 
-    <div class="date-picker-wrapper">
-      <div class="date-picker-container">
+    <div class="date-picker-wrapper" :style="{top:containerTop}">
 
+      <div class="date-picker-container" v-el:date-container>
         <!-- DatePick header -->
         <date-header
           :change-select-type.sync="toSelectYear"
@@ -46,21 +46,25 @@ module.exports = {
     },
 
     minDate: {
-      type: String,
-      default () {
-        return '1900-01-01'
-      }
+      type    : String,
+      default : '1900-01-01'
     },
 
     maxDate: {
-      type: String,
-      default () {
-        return '2115-01-01'
-      }
+      type    : String,
+      default : '2115-01-01'
     },
     show : {
-      type:Boolean,
-      required: true
+      type     : Boolean,
+      required : true
+    }
+  },
+
+  watch:{
+    show(){
+      this.$nextTick(() => {
+        this.containerTop = (window.innerHeight - this.$els.dateContainer.offsetHeight)/2 + 'px';
+      })
     }
   },
 
@@ -68,7 +72,8 @@ module.exports = {
     return {
       selectedDate : !(this.selectedDateProps instanceof Date) ? new Date(this.selectedDateProps):this.selectedDateProps,
       currentDate  : new Date(),
-      toSelectYear : false
+      toSelectYear : false,
+      containerTop : 0
     }
   },
 
@@ -163,34 +168,31 @@ module.exports = {
 <style lang="scss">
 
 @import './styles/_normalize.scss';
+@import './styles/_variables.scss';
 
 .date-picker {
   position: fixed;
-  z-index: 999;
+  z-index: 998;
   top: 0;
   left: 0;
   width: 100%;
   height: 100%;
   background-color: rgba(0, 0, 0, .5);
-  display: table;
   transition: opacity .3s ease;
 
   .date-picker-wrapper {
-    display: table-cell;
-    vertical-align: middle;
+    position: absolute;
+    left: 0;
+    right: 0;
 
     .date-picker-container {
       margin: 0 auto;
       z-index: 999;
       width: 320px;
-      outline: none;
       text-align: center;
-      background: white;
-      -webkit-touch-callout: none;
-      user-select: none;
-      //font-smoothing: antialiased;
+      background: #fff;
       transition: all .3s ease;
-      box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);
+      box-shadow: $shadows;
       border-radius: 2px;
     }
   }
