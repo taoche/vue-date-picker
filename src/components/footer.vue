@@ -22,6 +22,7 @@ module.exports = {
 
 <style lang="scss">
 @import '../styles/_variables.scss';
+
 .footer {
   padding: 15px 10px 10px 10px;
   text-align: right;

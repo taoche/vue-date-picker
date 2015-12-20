@@ -46,6 +46,8 @@ module.exports = {
 </script>
 
 <style lang="scss">
+@import '../styles/_variables.scss';
+
 .select-year {
   overflow: hidden;
   height: 290px;
@@ -68,7 +70,7 @@ module.exports = {
 
       &.active{
         font-size:22px;
-        color:#009485;
+        color:$activeColor;
         font-weight:800;
         margin:10px 0;
       }

@@ -34,7 +34,7 @@
 /******/ 	__webpack_require__.c = installedModules;
 
 /******/ 	// __webpack_public_path__
-/******/ 	__webpack_require__.p = "/static/";
+/******/ 	__webpack_require__.p = "/examples/static/";
 
 /******/ 	// Load entry module and return exports
 /******/ 	return __webpack_require__(0);
@@ -70,7 +70,7 @@
 /***/ function(module, exports, __webpack_require__) {
 
 	/* WEBPACK VAR INJECTION */(function(process) {/*!
-	 * Vue.js v1.0.10
+	 * Vue.js v1.0.12
 	 * (c) 2015 Evan You
 	 * Released under the MIT License.
 	 */
@@ -100,6 +100,7 @@
 	      vm._digest();
 	    }
 	  }
+	  return val;
 	}
 
 	/**
@@ -631,6 +632,7 @@
 	var str;
 	var dir;
 	var c;
+	var prev;
 	var i;
 	var l;
 	var lastFilterIndex;
@@ -716,13 +718,14 @@
 	  dir = {};
 
 	  for (i = 0, l = str.length; i < l; i++) {
+	    prev = c;
 	    c = str.charCodeAt(i);
 	    if (inSingle) {
 	      // check single quote
-	      if (c === 0x27) inSingle = !inSingle;
+	      if (c === 0x27 && prev !== 0x5C) inSingle = !inSingle;
 	    } else if (inDouble) {
 	      // check double quote
-	      if (c === 0x22) inDouble = !inDouble;
+	      if (c === 0x22 && prev !== 0x5C) inDouble = !inDouble;
 	    } else if (c === 0x7C && // pipe
 	    str.charCodeAt(i + 1) !== 0x7C && str.charCodeAt(i - 1) !== 0x7C) {
 	      if (dir.expression == null) {
@@ -915,10 +918,22 @@
 	  }
 	}
 
+	/**
+	 * Replace all interpolation tags in a piece of text.
+	 *
+	 * @param {String} text
+	 * @return {String}
+	 */
+
+	function removeTags(text) {
+	  return text.replace(tagRE, '');
+	}
+
 	var text$1 = Object.freeze({
 	  compileRegex: compileRegex,
 	  parseText: parseText,
-	  tokensToExp: tokensToExp
+	  tokensToExp: tokensToExp,
+	  removeTags: removeTags
 	});
 
 	var delimiters = ['{{', '}}'];
@@ -1193,6 +1208,18 @@
 	}
 
 	/**
+	 * Check the presence of a bind attribute.
+	 *
+	 * @param {Node} node
+	 * @param {String} name
+	 * @return {Boolean}
+	 */
+
+	function hasBindAttr(node, name) {
+	  return node.hasAttribute(name) || node.hasAttribute(':' + name) || node.hasAttribute('v-bind:' + name);
+	}
+
+	/**
 	 * Insert el before target
 	 *
 	 * @param {Element} el
@@ -1282,10 +1309,29 @@
 	}
 
 	/**
+	 * In IE9, setAttribute('class') will result in empty class
+	 * if the element also has the :class attribute; However in
+	 * PhantomJS, setting `className` does not work on SVG elements...
+	 * So we have to do a conditional check here.
+	 *
+	 * @param {Element} el
+	 * @param {String} cls
+	 */
+
+	function setClass(el, cls) {
+	  /* istanbul ignore if */
+	  if (isIE9 && !(el instanceof SVGElement)) {
+	    el.className = cls;
+	  } else {
+	    el.setAttribute('class', cls);
+	  }
+	}
+
+	/**
 	 * Add class with compatibility for IE & SVG
 	 *
 	 * @param {Element} el
-	 * @param {Strong} cls
+	 * @param {String} cls
 	 */
 
 	function addClass(el, cls) {
@@ -1294,7 +1340,7 @@
 	  } else {
 	    var cur = ' ' + (el.getAttribute('class') || '') + ' ';
 	    if (cur.indexOf(' ' + cls + ' ') < 0) {
-	      el.setAttribute('class', (cur + cls).trim());
+	      setClass(el, (cur + cls).trim());
 	    }
 	  }
 	}
@@ -1303,7 +1349,7 @@
 	 * Remove class with compatibility for IE & SVG
 	 *
 	 * @param {Element} el
-	 * @param {Strong} cls
+	 * @param {String} cls
 	 */
 
 	function removeClass(el, cls) {
@@ -1315,7 +1361,7 @@
 	    while (cur.indexOf(tar) >= 0) {
 	      cur = cur.replace(tar, ' ');
 	    }
-	    el.setAttribute('class', cur.trim());
+	    setClass(el, cur.trim());
 	  }
 	  if (!el.className) {
 	    el.removeAttribute('class');
@@ -1475,6 +1521,7 @@
 	}
 
 	var commonTagRE = /^(div|p|span|img|a|b|i|br|ul|ol|li|h1|h2|h3|h4|h5|h6|code|pre|table|th|td|tr|form|label|input|select|option|nav|article|section|header|footer)$/;
+	var reservedTagRE = /^(slot|partial|component)$/;
 
 	/**
 	 * Check if an element is a component, if yes return its
@@ -1488,7 +1535,7 @@
 	function checkComponentAttr(el, options) {
 	  var tag = el.tagName.toLowerCase();
 	  var hasAttrs = el.hasAttributes();
-	  if (!commonTagRE.test(tag) && tag !== 'component') {
+	  if (!commonTagRE.test(tag) && !reservedTagRE.test(tag)) {
 	    if (resolveAsset(options, 'components', tag)) {
 	      return { id: tag };
 	    } else {
@@ -1539,6 +1586,7 @@
 
 	function initProp(vm, prop, value) {
 	  var key = prop.path;
+	  value = coerceProp(prop, value);
 	  vm[key] = vm._data[key] = assertProp(prop, value) ? value : undefined;
 	}
 
@@ -1594,6 +1642,23 @@
 	    }
 	  }
 	  return true;
+	}
+
+	/**
+	 * Force parsing value with coerce option.
+	 *
+	 * @param {*} value
+	 * @param {Object} options
+	 * @return {*}
+	 */
+
+	function coerceProp(prop, value) {
+	  var coerce = prop.options.coerce;
+	  if (!coerce) {
+	    return value;
+	  }
+	  // coerce is a function
+	  return coerce(value);
 	}
 
 	function formatType(val) {
@@ -1781,8 +1846,8 @@
 	    var ids = Object.keys(components);
 	    for (var i = 0, l = ids.length; i < l; i++) {
 	      var key = ids[i];
-	      if (commonTagRE.test(key)) {
-	        process.env.NODE_ENV !== 'production' && warn('Do not use built-in HTML elements as component ' + 'id: ' + key);
+	      if (commonTagRE.test(key) || reservedTagRE.test(key)) {
+	        process.env.NODE_ENV !== 'production' && warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + key);
 	        continue;
 	      }
 	      def = components[key];
@@ -2189,7 +2254,7 @@
 	  var ob;
 	  if (hasOwn(value, '__ob__') && value.__ob__ instanceof Observer) {
 	    ob = value.__ob__;
-	  } else if ((isArray(value) || isPlainObject(value)) && !Object.isFrozen(value) && !value._isVue) {
+	  } else if ((isArray(value) || isPlainObject(value)) && Object.isExtensible(value) && !value._isVue) {
 	    ob = new Observer(value);
 	  }
 	  if (ob && vm) {
@@ -2294,6 +2359,7 @@
 		inDoc: inDoc,
 		getAttr: getAttr,
 		getBindAttr: getBindAttr,
+		hasBindAttr: hasBindAttr,
 		before: before,
 		after: after,
 		remove: remove,
@@ -2301,6 +2367,7 @@
 		replace: replace,
 		on: on$1,
 		off: off,
+		setClass: setClass,
 		addClass: addClass,
 		removeClass: removeClass,
 		extractContent: extractContent,
@@ -2316,7 +2383,9 @@
 		checkComponentAttr: checkComponentAttr,
 		initProp: initProp,
 		assertProp: assertProp,
+		coerceProp: coerceProp,
 		commonTagRE: commonTagRE,
+		reservedTagRE: reservedTagRE,
 		get warn () { return warn; }
 	});
 
@@ -2767,11 +2836,11 @@
 
 	var wsRE = /\s/g;
 	var newlineRE = /\n/g;
-	var saveRE = /[\{,]\s*[\w\$_]+\s*:|('[^']*'|"[^"]*")|new |typeof |void /g;
+	var saveRE = /[\{,]\s*[\w\$_]+\s*:|('(?:[^'\\]|\\.)*'|"(?:[^"\\]|\\.)*")|new |typeof |void /g;
 	var restoreRE = /"(\d+)"/g;
-	var pathTestRE = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
-	var pathReplaceRE = /[^\w$\.]([A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\])*)/g;
-	var booleanLiteralRE = /^(true|false)$/;
+	var pathTestRE = /^[A-Za-z_$][\w$]*(?:\.[A-Za-z_$][\w$]*|\['.*?'\]|\[".*?"\]|\[\d+\]|\[[A-Za-z_$][\w$]*\])*$/;
+	var identRE = /[^\w$\.](?:[A-Za-z_$][\w$]*)/g;
+	var booleanLiteralRE = /^(?:true|false)$/;
 
 	/**
 	 * Save / Rewrite / Restore
@@ -2854,7 +2923,7 @@
 	  var body = exp.replace(saveRE, save).replace(wsRE, '');
 	  // rewrite all paths
 	  // pad 1 space here becaue the regex matches 1 extra char
-	  body = (' ' + body).replace(pathReplaceRE, rewrite).replace(restoreRE, restore);
+	  body = (' ' + body).replace(identRE, rewrite).replace(restoreRE, restore);
 	  return makeGetterFn(body);
 	}
 
@@ -3244,11 +3313,11 @@
 	  if (this.active) {
 	    var value = this.get();
 	    if (value !== this.value ||
-	    // Deep watchers and Array watchers should fire even
+	    // Deep watchers and watchers on Object/Arrays should fire even
 	    // when the value is the same, because the value may
 	    // have mutated; but only do so if this is a
 	    // non-shallow update (caused by a vm digest).
-	    (isArray(value) || this.deep) && !this.shallow) {
+	    (isObject(value) || this.deep) && !this.shallow) {
 	      // set new value
 	      var oldValue = this.value;
 	      this.value = value;
@@ -3494,13 +3563,12 @@
 	var xlinkNS = 'http://www.w3.org/1999/xlink';
 	var xlinkRE = /^xlink:/;
 
-	// these input element attributes should also set their
-	// corresponding properties
-	var inputProps = {
-	  value: 1,
-	  checked: 1,
-	  selected: 1
-	};
+	// check for attributes that prohibit interpolations
+	var disallowedInterpAttrRE = /^v-|^:|^@|^(is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
+
+	// these attributes should also set their corresponding properties
+	// because they only affect the initial state of the element
+	var attrWithPropsRE = /^(value|checked|selected|muted)$/;
 
 	// these attributes should set a hidden property for
 	// binding v-model to object values
@@ -3509,9 +3577,6 @@
 	  'true-value': '_trueValue',
 	  'false-value': '_falseValue'
 	};
-
-	// check for attributes that prohibit interpolations
-	var disallowedInterpAttrRE = /^v-|^:|^@|^(is|transition|transition-mode|debounce|track-by|stagger|enter-stagger|leave-stagger)$/;
 
 	var bind = {
 
@@ -3565,9 +3630,9 @@
 	  handleObject: style.handleObject,
 
 	  handleSingle: function handleSingle(attr, value) {
-	    if (inputProps[attr] && attr in this.el) {
-	      this.el[attr] = attr === 'value' ? value || '' : // IE9 will set input.value to "null" for null...
-	      value;
+	    if (!this.descriptor.interp && attrWithPropsRE.test(attr) && attr in this.el) {
+	      this.el[attr] = attr === 'value' ? value == null // IE9 will set input.value to "null" for null...
+	      ? '' : value : value;
 	    }
 	    // set model props
 	    var modelProp = modelProps[attr];
@@ -3748,7 +3813,7 @@
 	    };
 
 	    this.on('change', this.listener);
-	    if (el.checked) {
+	    if (el.hasAttribute('checked')) {
 	      this.afterBind = this.listener;
 	    }
 	  },
@@ -3894,7 +3959,7 @@
 	    };
 	    this.on('change', this.listener);
 
-	    if (el.checked) {
+	    if (el.hasAttribute('checked')) {
 	      this.afterBind = this.listener;
 	    }
 	  },
@@ -3948,13 +4013,18 @@
 	      });
 	      this.on('blur', function () {
 	        self.focused = false;
-	        self.listener();
+	        // do not sync value after fragment removal (#2017)
+	        if (!self._frag || self._frag.inserted) {
+	          self.rawListener();
+	        }
 	      });
 	    }
 
 	    // Now attach the main listener
-	    this.listener = function () {
-	      if (composing) return;
+	    this.listener = this.rawListener = function () {
+	      if (composing || !self._bound) {
+	        return;
+	      }
 	      var val = number || isRange ? toNumber(el.value) : el.value;
 	      self.set(val);
 	      // force update on next tick to avoid lock & same value
@@ -4118,9 +4188,14 @@
 	  },
 
 	  apply: function apply(el, value) {
-	    applyTransition(el, value ? 1 : -1, function () {
+	    if (inDoc(el)) {
+	      applyTransition(el, value ? 1 : -1, toggle, this.vm);
+	    } else {
+	      toggle();
+	    }
+	    function toggle() {
 	      el.style.display = value ? '' : 'none';
-	    }, this.vm);
+	    }
 	  }
 	};
 
@@ -4155,7 +4230,7 @@
 	}
 
 	var tagRE$1 = /<([\w:]+)/;
-	var entityRE = /&\w+;|&#\d+;|&#x[\dA-F]+;/;
+	var entityRE = /&#?\w+?;/;
 
 	/**
 	 * Convert a string template to a DocumentFragment.
@@ -5690,6 +5765,7 @@
 	    var twoWay = prop.mode === bindingModes.TWO_WAY;
 
 	    var parentWatcher = this.parentWatcher = new Watcher(parent, parentKey, function (val) {
+	      val = coerceProp(prop, val);
 	      if (assertProp(prop, val)) {
 	        child[childKey] = val;
 	      }
@@ -5857,6 +5933,9 @@
 	    if (activateHook && !cached) {
 	      this.waitingFor = newComponent;
 	      activateHook.call(newComponent, function () {
+	        if (self.waitingFor !== newComponent) {
+	          return;
+	        }
 	        self.waitingFor = null;
 	        self.transition(newComponent, cb);
 	      });
@@ -6141,7 +6220,7 @@
 	var empty = {};
 
 	// regexes
-	var identRE = /^[$_a-zA-Z]+[\w$]*$/;
+	var identRE$1 = /^[$_a-zA-Z]+[\w$]*$/;
 	var settablePathRE = /^[A-Za-z_$][\w$]*(\.[A-Za-z_$][\w$]*|\[[^\[\]]+\])*$/;
 
 	/**
@@ -6171,7 +6250,7 @@
 	    // interpreted as minus calculations by the parser
 	    // so we need to camelize the path here
 	    path = camelize(name);
-	    if (!identRE.test(path)) {
+	    if (!identRE$1.test(path)) {
 	      process.env.NODE_ENV !== 'production' && warn('Invalid prop key: "' + name + '". Prop keys ' + 'must be valid identifiers.');
 	      continue;
 	    }
@@ -6779,6 +6858,11 @@
 	function checkElementDirectives(el, options) {
 	  var tag = el.tagName.toLowerCase();
 	  if (commonTagRE.test(tag)) return;
+	  // special case: give named slot a higher priority
+	  // than unnamed slots
+	  if (tag === 'slot' && hasBindAttr(el, 'name')) {
+	    tag = '_namedSlot';
+	  }
 	  var def = resolveAsset(options, 'elementDirectives', tag);
 	  if (def) {
 	    return makeTerminalNodeLinkFn(el, tag, '', options, def);
@@ -6917,8 +7001,12 @@
 	    // attribute interpolations
 	    if (tokens) {
 	      value = tokensToExp(tokens);
-	      arg = name;
-	      pushDir('bind', publicDirectives.bind, true);
+	      if (name === 'class') {
+	        pushDir('class', internalDirectives['class'], true);
+	      } else {
+	        arg = name;
+	        pushDir('bind', publicDirectives.bind, true);
+	      }
 	      // warn against mixing mustaches with v-bind
 	      if (process.env.NODE_ENV !== 'production') {
 	        if (name === 'class' && Array.prototype.some.call(attrs, function (attr) {
@@ -7119,7 +7207,7 @@
 	      // non-element template
 	      replacer.nodeType !== 1 ||
 	      // single nested component
-	      tag === 'component' || resolveAsset(options, 'components', tag) || replacer.hasAttribute('is') || replacer.hasAttribute(':is') || replacer.hasAttribute('v-bind:is') ||
+	      tag === 'component' || resolveAsset(options, 'components', tag) || hasBindAttr(replacer, 'is') ||
 	      // element directive
 	      resolveAsset(options, 'elementDirectives', tag) ||
 	      // for block
@@ -7655,7 +7743,13 @@
 	  // remove attribute
 	  if ((name !== 'cloak' || this.vm._isCompiled) && this.el && this.el.removeAttribute) {
 	    var attr = descriptor.attr || 'v-' + name;
-	    this.el.removeAttribute(attr);
+	    if (attr !== 'class') {
+	      this.el.removeAttribute(attr);
+	    } else {
+	      // for class interpolations, only remove the parts that
+	      // need to be interpolated.
+	      setClass(this.el, removeTags(this.el.getAttribute('class')).trim().replace(/\s+/g, ' '));
+	    }
 	  }
 
 	  // copy def properties
@@ -7673,6 +7767,7 @@
 	  if (this.bind) {
 	    this.bind();
 	  }
+	  this._bound = true;
 
 	  if (this.literal) {
 	    this.update && this.update(descriptor.raw);
@@ -7708,7 +7803,6 @@
 	      this.update(watcher.value);
 	    }
 	  }
-	  this._bound = true;
 	};
 
 	/**
@@ -7929,6 +8023,11 @@
 	    el = transclude(el, options);
 	    this._initElement(el);
 
+	    // handle v-pre on root node (#2026)
+	    if (el.nodeType === 1 && getAttr(el, 'v-pre') !== null) {
+	      return;
+	    }
+
 	    // root is always compiled per-instance, because
 	    // container attrs and props can be different every time.
 	    var contextOptions = this._context && this._context.$options;
@@ -8026,6 +8125,30 @@
 	      }
 	      return;
 	    }
+
+	    var destroyReady;
+	    var pendingRemoval;
+
+	    var self = this;
+	    // Cleanup should be called either synchronously or asynchronoysly as
+	    // callback of this.$remove(), or if remove and deferCleanup are false.
+	    // In any case it should be called after all other removing, unbinding and
+	    // turning of is done
+	    var cleanupIfPossible = function cleanupIfPossible() {
+	      if (destroyReady && !pendingRemoval && !deferCleanup) {
+	        self._cleanup();
+	      }
+	    };
+
+	    // remove DOM element
+	    if (remove && this.$el) {
+	      pendingRemoval = true;
+	      this.$remove(function () {
+	        pendingRemoval = false;
+	        cleanupIfPossible();
+	      });
+	    }
+
 	    this._callHook('beforeDestroy');
 	    this._isBeingDestroyed = true;
 	    var i;
@@ -8059,15 +8182,9 @@
 	    if (this.$el) {
 	      this.$el.__vue__ = null;
 	    }
-	    // remove DOM element
-	    var self = this;
-	    if (remove && this.$el) {
-	      this.$remove(function () {
-	        self._cleanup();
-	      });
-	    } else if (!deferCleanup) {
-	      this._cleanup();
-	    }
+
+	    destroyReady = true;
+	    cleanupIfPossible();
 	  };
 
 	  /**
@@ -8248,6 +8365,12 @@
 	      return extendOptions._Ctor;
 	    }
 	    var name = extendOptions.name || Super.options.name;
+	    if (process.env.NODE_ENV !== 'production') {
+	      if (!/^[a-zA-Z][\w-]+$/.test(name)) {
+	        warn('Invalid component name: ' + name);
+	        name = null;
+	      }
+	    }
 	    var Sub = createClass(name || 'VueComponent');
 	    Sub.prototype = Object.create(Super.prototype);
 	    Sub.prototype.constructor = Sub;
@@ -8332,8 +8455,8 @@
 	      } else {
 	        /* istanbul ignore if */
 	        if (process.env.NODE_ENV !== 'production') {
-	          if (type === 'component' && commonTagRE.test(id)) {
-	            warn('Do not use built-in HTML elements as component ' + 'id: ' + id);
+	          if (type === 'component' && (commonTagRE.test(id) || reservedTagRE.test(id))) {
+	            warn('Do not use built-in or reserved HTML elements as component ' + 'id: ' + id);
 	          }
 	        }
 	        if (type === 'component' && isPlainObject(definition)) {
@@ -8365,7 +8488,9 @@
 	      if (asStatement && !isSimplePath(exp)) {
 	        var self = this;
 	        return function statementHandler() {
+	          self.$arguments = toArray(arguments);
 	          res.get.call(self, self);
+	          self.$arguments = null;
 	        };
 	      } else {
 	        try {
@@ -8422,6 +8547,7 @@
 	    }
 	    var watcher = new Watcher(vm, expOrFn, cb, {
 	      deep: options && options.deep,
+	      sync: options && options.sync,
 	      filters: parsed && parsed.filters
 	    });
 	    if (options && options.immediate) {
@@ -9229,55 +9355,46 @@
 	// instance being stored as `$options._content` during
 	// the transclude phase.
 
+	// We are exporting two versions, one for named and one
+	// for unnamed, because the unnamed slots must be compiled
+	// AFTER all named slots have selected their content. So
+	// we need to give them different priorities in the compilation
+	// process. (See #1965)
+
 	var slot = {
 
 	  priority: 1750,
 
-	  params: ['name'],
-
 	  bind: function bind() {
 	    var host = this.vm;
 	    var raw = host.$options._content;
-	    var content;
 	    if (!raw) {
 	      this.fallback();
 	      return;
 	    }
 	    var context = host._context;
-	    var slotName = this.params.name;
+	    var slotName = this.params && this.params.name;
 	    if (!slotName) {
-	      // Default content
-	      var self = this;
-	      var compileDefaultContent = function compileDefaultContent() {
-	        self.compile(extractFragment(raw.childNodes, raw, true), context, host);
-	      };
-	      if (!host._isCompiled) {
-	        // defer until the end of instance compilation,
-	        // because the default outlet must wait until all
-	        // other possible outlets with selectors have picked
-	        // out their contents.
-	        host.$once('hook:compiled', compileDefaultContent);
-	      } else {
-	        compileDefaultContent();
-	      }
+	      // Default slot
+	      this.tryCompile(extractFragment(raw.childNodes, raw, true), context, host);
 	    } else {
+	      // Named slot
 	      var selector = '[slot="' + slotName + '"]';
 	      var nodes = raw.querySelectorAll(selector);
 	      if (nodes.length) {
-	        content = extractFragment(nodes, raw);
-	        if (content.hasChildNodes()) {
-	          this.compile(content, context, host);
-	        } else {
-	          this.fallback();
-	        }
+	        this.tryCompile(extractFragment(nodes, raw), context, host);
 	      } else {
 	        this.fallback();
 	      }
 	    }
 	  },
 
-	  fallback: function fallback() {
-	    this.compile(extractContent(this.el, true), this.vm);
+	  tryCompile: function tryCompile(content, context, host) {
+	    if (content.hasChildNodes()) {
+	      this.compile(content, context, host);
+	    } else {
+	      this.fallback();
+	    }
 	  },
 
 	  compile: function compile(content, context, host) {
@@ -9292,12 +9409,21 @@
 	    }
 	  },
 
+	  fallback: function fallback() {
+	    this.compile(extractContent(this.el, true), this.vm);
+	  },
+
 	  unbind: function unbind() {
 	    if (this.unlink) {
 	      this.unlink();
 	    }
 	  }
 	};
+
+	var namedSlot = extend(extend({}, slot), {
+	  priority: slot.priority + 1,
+	  params: ['name']
+	});
 
 	/**
 	 * Extract qualified content nodes from a node list.
@@ -9338,10 +9464,11 @@
 
 	var elementDirectives = {
 	  slot: slot,
+	  _namedSlot: namedSlot, // same as slot but with higher priority
 	  partial: partial
 	};
 
-	Vue.version = '1.0.10';
+	Vue.version = '1.0.12';
 
 	/**
 	 * Vue and every constructor that extends Vue has an
@@ -9364,9 +9491,11 @@
 
 	// devtools global hook
 	/* istanbul ignore if */
-	if (process.env.NODE_ENV !== 'production') {
-	  if (inBrowser && window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
+	if (process.env.NODE_ENV !== 'production' && inBrowser) {
+	  if (window.__VUE_DEVTOOLS_GLOBAL_HOOK__) {
 	    window.__VUE_DEVTOOLS_GLOBAL_HOOK__.emit('init', Vue);
+	  } else if (/Chrome\/\d+/.test(navigator.userAgent)) {
+	    console.log('Download the Vue Devtools for a better development experience:\n' + 'https://github.com/vuejs/vue-devtools');
 	  }
 	}
 
@@ -9479,7 +9608,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(46)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/examples/app.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 11 */
@@ -9497,8 +9636,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-2781b246&file=app.vue&scoped=true!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./app.vue", function() {
-				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-2781b246&file=app.vue&scoped=true!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./app.vue");
+			module.hot.accept("!!./../node_modules/css-loader/index.js!./../node_modules/vue-loader/lib/style-rewriter.js?id=_v-472e6e29&file=app.vue&scoped=true!./../node_modules/sass-loader/index.js!./../node_modules/vue-loader/lib/selector.js?type=style&index=0!./app.vue", function() {
+				var newContent = require("!!./../node_modules/css-loader/index.js!./../node_modules/vue-loader/lib/style-rewriter.js?id=_v-472e6e29&file=app.vue&scoped=true!./../node_modules/sass-loader/index.js!./../node_modules/vue-loader/lib/selector.js?type=style&index=0!./app.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -9516,7 +9655,7 @@
 
 
 	// module
-	exports.push([module.id, "h2[_v-2781b246] {\n  color: blue; }\n", ""]);
+	exports.push([module.id, "h2[_v-472e6e29] {\n  color: blue; }\n", ""]);
 
 	// exports
 
@@ -9884,7 +10023,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(45)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/datePicker.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 17 */
@@ -9902,8 +10051,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../node_modules/css-loader/index.js!./../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-1c47292a&file=datePicker.vue!./../../../../node_modules/sass-loader/index.js!./../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./datePicker.vue", function() {
-				var newContent = require("!!./../../../../node_modules/css-loader/index.js!./../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-1c47292a&file=datePicker.vue!./../../../../node_modules/sass-loader/index.js!./../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./datePicker.vue");
+			module.hot.accept("!!./../node_modules/css-loader/index.js!./../node_modules/vue-loader/lib/style-rewriter.js?id=_v-8f4c9b96&file=datePicker.vue!./../node_modules/sass-loader/index.js!./../node_modules/vue-loader/lib/selector.js?type=style&index=0!./datePicker.vue", function() {
+				var newContent = require("!!./../node_modules/css-loader/index.js!./../node_modules/vue-loader/lib/style-rewriter.js?id=_v-8f4c9b96&file=datePicker.vue!./../node_modules/sass-loader/index.js!./../node_modules/vue-loader/lib/selector.js?type=style&index=0!./datePicker.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -9921,7 +10070,7 @@
 
 
 	// module
-	exports.push([module.id, "/*! normalize.css v3.0.3 | MIT License | github.com/necolas/normalize.css */\nhtml {\n  font-family: sans-serif;\n  -ms-text-size-adjust: 100%;\n  -webkit-text-size-adjust: 100%; }\n\nbody {\n  margin: 0; }\n\narticle,\naside,\ndetails,\nfigcaption,\nfigure,\nfooter,\nheader,\nhgroup,\nmain,\nmenu,\nnav,\nsection,\nsummary {\n  display: block; }\n\naudio,\ncanvas,\nprogress,\nvideo {\n  display: inline-block;\n  vertical-align: baseline; }\n\naudio:not([controls]) {\n  display: none;\n  height: 0; }\n\n[hidden],\ntemplate {\n  display: none; }\n\na {\n  background-color: transparent; }\n\na:active {\n  outline: 0; }\n\na:hover {\n  outline: 0; }\n\nabbr[title] {\n  border-bottom: 1px dotted; }\n\nb,\nstrong {\n  font-weight: bold; }\n\ndfn {\n  font-style: italic; }\n\nh1 {\n  font-size: 2em;\n  margin: 0.67em 0; }\n\nmark {\n  background: #ff0;\n  color: #000; }\n\nsmall {\n  font-size: 80%; }\n\nsub,\nsup {\n  font-size: 75%;\n  line-height: 0;\n  position: relative;\n  vertical-align: baseline; }\n\nsup {\n  top: -0.5em; }\n\nsub {\n  bottom: -0.25em; }\n\nimg {\n  border: 0; }\n\nsvg:not(:root) {\n  overflow: hidden; }\n\nfigure {\n  margin: 1em 40px; }\n\nhr {\n  box-sizing: content-box;\n  height: 0; }\n\npre {\n  overflow: auto; }\n\ncode,\nkbd,\npre,\nsamp {\n  font-family: monospace, monospace;\n  font-size: 1em; }\n\nbutton,\ninput,\noptgroup,\nselect,\ntextarea {\n  color: inherit;\n  font: inherit;\n  margin: 0; }\n\nbutton {\n  overflow: visible; }\n\nbutton,\nselect {\n  text-transform: none; }\n\nbutton,\nhtml input[type=\"button\"],\ninput[type=\"reset\"],\ninput[type=\"submit\"] {\n  -webkit-appearance: button;\n  cursor: pointer; }\n\nbutton[disabled],\nhtml input[disabled] {\n  cursor: default; }\n\nbutton::-moz-focus-inner,\ninput::-moz-focus-inner {\n  border: 0;\n  padding: 0; }\n\ninput {\n  line-height: normal; }\n\ninput[type=\"checkbox\"],\ninput[type=\"radio\"] {\n  box-sizing: border-box;\n  padding: 0; }\n\ninput[type=\"number\"]::-webkit-inner-spin-button,\ninput[type=\"number\"]::-webkit-outer-spin-button {\n  height: auto; }\n\ninput[type=\"search\"] {\n  -webkit-appearance: textfield;\n  box-sizing: content-box; }\n\ninput[type=\"search\"]::-webkit-search-cancel-button,\ninput[type=\"search\"]::-webkit-search-decoration {\n  -webkit-appearance: none; }\n\nfieldset {\n  border: 1px solid #c0c0c0;\n  margin: 0 2px;\n  padding: 0.35em 0.625em 0.75em; }\n\nlegend {\n  border: 0;\n  padding: 0; }\n\ntextarea {\n  overflow: auto; }\n\noptgroup {\n  font-weight: bold; }\n\ntable {\n  border-collapse: collapse;\n  border-spacing: 0; }\n\ntd,\nth {\n  padding: 0; }\n\n.date-picker {\n  position: fixed;\n  z-index: 999;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background-color: rgba(0, 0, 0, 0.5);\n  display: table;\n  transition: opacity .3s ease; }\n  .date-picker .date-picker-wrapper {\n    display: table-cell;\n    vertical-align: middle; }\n    .date-picker .date-picker-wrapper .date-picker-container {\n      margin: 0 auto;\n      z-index: 999;\n      width: 320px;\n      outline: none;\n      text-align: center;\n      background: white;\n      -webkit-touch-callout: none;\n      -webkit-user-select: none;\n         -moz-user-select: none;\n          -ms-user-select: none;\n              user-select: none;\n      transition: all .3s ease;\n      box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);\n      border-radius: 2px; }\n  .date-picker.date-enter, .date-picker.date-leave {\n    opacity: 0; }\n    .date-picker.date-enter .date-picker-container, .date-picker.date-leave .date-picker-container {\n      -webkit-transform: scale(1.1);\n              transform: scale(1.1); }\n", ""]);
+	exports.push([module.id, "/*! normalize.css v3.0.3 | MIT License | github.com/necolas/normalize.css */\nhtml {\n  font-family: sans-serif;\n  -ms-text-size-adjust: 100%;\n  -webkit-text-size-adjust: 100%; }\n\nbody {\n  margin: 0; }\n\narticle,\naside,\ndetails,\nfigcaption,\nfigure,\nfooter,\nheader,\nhgroup,\nmain,\nmenu,\nnav,\nsection,\nsummary {\n  display: block; }\n\naudio,\ncanvas,\nprogress,\nvideo {\n  display: inline-block;\n  vertical-align: baseline; }\n\naudio:not([controls]) {\n  display: none;\n  height: 0; }\n\n[hidden],\ntemplate {\n  display: none; }\n\na {\n  background-color: transparent; }\n\na:active {\n  outline: 0; }\n\na:hover {\n  outline: 0; }\n\nabbr[title] {\n  border-bottom: 1px dotted; }\n\nb,\nstrong {\n  font-weight: bold; }\n\ndfn {\n  font-style: italic; }\n\nh1 {\n  font-size: 2em;\n  margin: 0.67em 0; }\n\nmark {\n  background: #ff0;\n  color: #000; }\n\nsmall {\n  font-size: 80%; }\n\nsub,\nsup {\n  font-size: 75%;\n  line-height: 0;\n  position: relative;\n  vertical-align: baseline; }\n\nsup {\n  top: -0.5em; }\n\nsub {\n  bottom: -0.25em; }\n\nimg {\n  border: 0; }\n\nsvg:not(:root) {\n  overflow: hidden; }\n\nfigure {\n  margin: 1em 40px; }\n\nhr {\n  box-sizing: content-box;\n  height: 0; }\n\npre {\n  overflow: auto; }\n\ncode,\nkbd,\npre,\nsamp {\n  font-family: monospace, monospace;\n  font-size: 1em; }\n\nbutton,\ninput,\noptgroup,\nselect,\ntextarea {\n  color: inherit;\n  font: inherit;\n  margin: 0; }\n\nbutton {\n  overflow: visible; }\n\nbutton,\nselect {\n  text-transform: none; }\n\nbutton,\nhtml input[type=\"button\"],\ninput[type=\"reset\"],\ninput[type=\"submit\"] {\n  -webkit-appearance: button;\n  cursor: pointer; }\n\nbutton[disabled],\nhtml input[disabled] {\n  cursor: default; }\n\nbutton::-moz-focus-inner,\ninput::-moz-focus-inner {\n  border: 0;\n  padding: 0; }\n\ninput {\n  line-height: normal; }\n\ninput[type=\"checkbox\"],\ninput[type=\"radio\"] {\n  box-sizing: border-box;\n  padding: 0; }\n\ninput[type=\"number\"]::-webkit-inner-spin-button,\ninput[type=\"number\"]::-webkit-outer-spin-button {\n  height: auto; }\n\ninput[type=\"search\"] {\n  -webkit-appearance: textfield;\n  box-sizing: content-box; }\n\ninput[type=\"search\"]::-webkit-search-cancel-button,\ninput[type=\"search\"]::-webkit-search-decoration {\n  -webkit-appearance: none; }\n\nfieldset {\n  border: 1px solid #c0c0c0;\n  margin: 0 2px;\n  padding: 0.35em 0.625em 0.75em; }\n\nlegend {\n  border: 0;\n  padding: 0; }\n\ntextarea {\n  overflow: auto; }\n\noptgroup {\n  font-weight: bold; }\n\ntable {\n  border-collapse: collapse;\n  border-spacing: 0; }\n\ntd,\nth {\n  padding: 0; }\n\n.date-picker {\n  position: fixed;\n  z-index: 998;\n  top: 0;\n  left: 0;\n  width: 100%;\n  height: 100%;\n  background-color: rgba(0, 0, 0, 0.5);\n  transition: opacity .3s ease; }\n  .date-picker .date-picker-wrapper {\n    position: absolute;\n    left: 0;\n    right: 0; }\n    .date-picker .date-picker-wrapper .date-picker-container {\n      margin: 0 auto;\n      z-index: 999;\n      width: 320px;\n      text-align: center;\n      background: #fff;\n      transition: all .3s ease;\n      box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);\n      border-radius: 2px; }\n  .date-picker.date-enter, .date-picker.date-leave {\n    opacity: 0; }\n    .date-picker.date-enter .date-picker-container, .date-picker.date-leave .date-picker-container {\n      -webkit-transform: scale(1.1);\n              transform: scale(1.1); }\n", ""]);
 
 	// exports
 
@@ -9935,9 +10084,9 @@
 	// <template>
 	//   <div class="date-picker" v-if="show" transition="date">
 
-	//     <div class="date-picker-wrapper">
-	//       <div class="date-picker-container">
+	//     <div class="date-picker-wrapper" :style="{top:containerTop}">
 
+	//       <div class="date-picker-container" v-el:date-container>
 	//         <!-- DatePick header -->
 	//         <date-header
 	//           :change-select-type.sync="toSelectYear"
@@ -9966,7 +10115,7 @@
 	//           :selected-date.sync="selectedDate"></pick-year>
 
 	//         <!-- DatePick footer -->
-	//         <date-footer> </date-footer>
+	//         <date-footer></date-footer>
 	//       </div>
 	//     <div>
 	//   </div>
@@ -9981,16 +10130,12 @@
 
 	    minDate: {
 	      type: String,
-	      default: function _default() {
-	        return '1900-01-01';
-	      }
+	      default: '1900-01-01'
 	    },
 
 	    maxDate: {
 	      type: String,
-	      default: function _default() {
-	        return '2115-01-01';
-	      }
+	      default: '2115-01-01'
 	    },
 	    show: {
 	      type: Boolean,
@@ -9998,11 +10143,22 @@
 	    }
 	  },
 
+	  watch: {
+	    show: function show() {
+	      var _this = this;
+
+	      this.$nextTick(function () {
+	        _this.containerTop = (window.innerHeight - _this.$els.dateContainer.offsetHeight) / 2 + 'px';
+	      });
+	    }
+	  },
+
 	  data: function data() {
 	    return {
 	      selectedDate: !(this.selectedDateProps instanceof Date) ? new Date(this.selectedDateProps) : this.selectedDateProps,
 	      currentDate: new Date(),
-	      toSelectYear: false
+	      toSelectYear: false,
+	      containerTop: 0
 	    };
 	  },
 
@@ -10086,35 +10242,32 @@
 
 	// <style lang="scss">
 
-	// @import '../../../styles/normalize.scss';
+	// @import './styles/_normalize.scss';
+	// @import './styles/_variables.scss';
 
 	// .date-picker {
 	//   position: fixed;
-	//   z-index: 999;
+	//   z-index: 998;
 	//   top: 0;
 	//   left: 0;
 	//   width: 100%;
 	//   height: 100%;
 	//   background-color: rgba(0, 0, 0, .5);
-	//   display: table;
 	//   transition: opacity .3s ease;
 
 	//   .date-picker-wrapper {
-	//     display: table-cell;
-	//     vertical-align: middle;
+	//     position: absolute;
+	//     left: 0;
+	//     right: 0;
 
 	//     .date-picker-container {
 	//       margin: 0 auto;
 	//       z-index: 999;
 	//       width: 320px;
-	//       outline: none;
 	//       text-align: center;
-	//       background: white;
-	//       -webkit-touch-callout: none;
-	//       user-select: none;
-	//       //font-smoothing: antialiased;
+	//       background: #fff;
 	//       transition: all .3s ease;
-	//       box-shadow: 0 14px 45px rgba(0, 0, 0, 0.25), 0 10px 18px rgba(0, 0, 0, 0.22);
+	//       box-shadow: $shadows;
 	//       border-radius: 2px;
 	//     }
 	//   }
@@ -10139,7 +10292,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(24)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/components/header.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 21 */
@@ -10157,8 +10320,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-caa81070&file=header.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./header.vue", function() {
-				var newContent = require("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-caa81070&file=header.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./header.vue");
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-c3eb8746&file=header.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./header.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-c3eb8746&file=header.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./header.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -10176,7 +10339,7 @@
 
 
 	// module
-	exports.push([module.id, ".header {\n  background: #009688;\n  padding: 20px;\n  color: rgba(255, 255, 255, 0.7);\n  height: 72px;\n  text-align: left; }\n  .header h4,\n  .header h2 {\n    cursor: pointer; }\n  .header h4 {\n    margin: 0;\n    font-weight: 400; }\n  .header .date-year {\n    height: 16px;\n    overflow: hidden; }\n  .header .date {\n    height: 40px;\n    margin: 15px 0 0 0;\n    overflow: hidden; }\n    .header .date h2 {\n      font-size: 36px;\n      margin: 0; }\n  .header .ani-up {\n    -webkit-animation: runUp .4s;\n            animation: runUp .4s; }\n  .header .ani-down {\n    -webkit-animation: runDown .4s;\n            animation: runDown .4s; }\n  .header .active {\n    color: #fff; }\n\n@-webkit-keyframes runUp {\n  0% {\n    -webkit-transform: translateY(-20px); }\n  100% {\n    -webkit-transform: translateY(0); } }\n\n@-webkit-keyframes runDown {\n  0% {\n    -webkit-transform: translateY(20px); }\n  100% {\n    -webkit-transform: translateY(0); } }\n", ""]);
+	exports.push([module.id, ".header {\n  background: #009688;\n  padding: 20px;\n  color: rgba(255, 255, 255, 0.54);\n  height: 72px;\n  text-align: left; }\n  .header h4,\n  .header h2 {\n    cursor: pointer; }\n  .header h4 {\n    margin: 0;\n    font-weight: 400; }\n  .header .date-year {\n    height: 16px;\n    overflow: hidden; }\n  .header .date {\n    height: 40px;\n    margin: 15px 0 0 0;\n    overflow: hidden; }\n    .header .date h2 {\n      font-size: 36px;\n      margin: 0; }\n  .header .ani-up {\n    -webkit-animation: runUp .4s;\n            animation: runUp .4s; }\n  .header .ani-down {\n    -webkit-animation: runDown .4s;\n            animation: runDown .4s; }\n  .header .active {\n    color: #fff; }\n\n@-webkit-keyframes runUp {\n  0% {\n    -webkit-transform: translateY(-20px); }\n  100% {\n    -webkit-transform: translateY(0); } }\n\n@-webkit-keyframes runDown {\n  0% {\n    -webkit-transform: translateY(20px); }\n  100% {\n    -webkit-transform: translateY(0); } }\n", ""]);
 
 	// exports
 
@@ -10259,10 +10422,12 @@
 	// </script>
 
 	// <style lang="scss">
+	// @import '../styles/_variables.scss';
+
 	// .header {
-	//   background: #009688;
+	//   background: $activeColor;
 	//   padding: 20px;
-	//   color: rgba(#fff, .7);
+	//   color: $headerBaseColor;
 	//   height: 72px;
 	//   text-align: left;
 	//   h4,
@@ -10283,6 +10448,7 @@
 	//     height: 40px;
 	//     margin: 15px 0 0 0;
 	//     overflow: hidden;
+
 	//     h2 {
 	//       font-size: 36px;
 	//       margin: 0;
@@ -10333,7 +10499,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(29)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/components/footer.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 26 */
@@ -10351,8 +10527,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-797993d6&file=footer.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./footer.vue", function() {
-				var newContent = require("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-797993d6&file=footer.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./footer.vue");
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-7cd7d86b&file=footer.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./footer.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-7cd7d86b&file=footer.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./footer.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -10370,7 +10546,7 @@
 
 
 	// module
-	exports.push([module.id, ".footer {\n  padding: 15px 10px 10px 10px;\n  text-align: right; }\n  .footer button {\n    border: none;\n    color: red;\n    color: #009688;\n    background: transparent;\n    cursor: pointer;\n    padding: 8px 20px; }\n    .footer button:hover {\n      -webkit-animation: btn-fade-in .5s ease both;\n              animation: btn-fade-in .5s ease both; }\n    .footer button:focus {\n      outline: none; }\n\n@-webkit-keyframes btn-fade-in {\n  0% {\n    background: rgba(0, 176, 159, 0.1); }\n  100% {\n    background: rgba(0, 176, 159, 0.5); } }\n", ""]);
+	exports.push([module.id, ".footer {\n  padding: 15px 10px 10px 10px;\n  text-align: right; }\n  .footer button {\n    border: none;\n    color: red;\n    color: #009688;\n    background: transparent;\n    cursor: pointer;\n    padding: 8px 20px; }\n    .footer button:hover {\n      color: #fff;\n      -webkit-animation: btn-fade-in .5s ease both;\n              animation: btn-fade-in .5s ease both; }\n    .footer button:focus {\n      outline: none; }\n\n@-webkit-keyframes btn-fade-in {\n  0% {\n    background: rgba(0, 176, 159, 0.1); }\n  100% {\n    background: rgba(0, 176, 159, 0.5); } }\n", ""]);
 
 	// exports
 
@@ -10404,6 +10580,8 @@
 	// </script>
 
 	// <style lang="scss">
+	// @import '../styles/_variables.scss';
+
 	// .footer {
 	//   padding: 15px 10px 10px 10px;
 	//   text-align: right;
@@ -10411,12 +10589,13 @@
 	//   button {
 	//     border: none;
 	//     color: red;
-	//     color: #009688;
+	//     color: $activeColor;
 	//     background: transparent;
 	//     cursor: pointer;
 	//     padding: 8px 20px;
 
 	//     &:hover {
+	//       color: #fff;
 	//       animation: btn-fade-in .5s ease both;
 	//     }
 
@@ -10452,7 +10631,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(34)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/components/pickMonth.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 31 */
@@ -10470,8 +10659,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-57eabc18&file=pickMonth.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickMonth.vue", function() {
-				var newContent = require("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-57eabc18&file=pickMonth.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickMonth.vue");
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-69cccd82&file=pickMonth.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickMonth.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-69cccd82&file=pickMonth.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickMonth.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -10599,7 +10788,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(39)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/components/pickDate.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 36 */
@@ -10617,8 +10816,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-939bfa2c&file=pickDate.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickDate.vue", function() {
-				var newContent = require("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-939bfa2c&file=pickDate.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickDate.vue");
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-5b11763f&file=pickDate.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickDate.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-5b11763f&file=pickDate.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickDate.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -10636,7 +10835,7 @@
 
 
 	// module
-	exports.push([module.id, ".select-date {\n  width: inherit;\n  border-collapse: collapse;\n  border-spacing: 0;\n  color: #4e647b;\n  width: 300px;\n  margin: 0 auto;\n  text-align: center; }\n  .select-date .weekHeader {\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-justify-content: space-around;\n        -ms-flex-pack: distribute;\n            justify-content: space-around;\n    padding: 10px 0;\n    font-size: 12px;\n    color: #a5a5a5; }\n  .select-date tbody {\n    display: block;\n    width: inherit;\n    margin-top: 10px; }\n    .select-date tbody tr {\n      display: -webkit-flex;\n      display: -ms-flexbox;\n      display: flex;\n      -webkit-justify-content: space-around;\n          -ms-flex-pack: distribute;\n              justify-content: space-around; }\n      .select-date tbody tr .not-current-month {\n        color: #a7b2bd;\n        opacity: 0;\n        height: 0;\n        cursor: default; }\n      .select-date tbody tr td {\n        width: 36px;\n        height: 36px;\n        margin: 2px 0;\n        display: inline-block;\n        line-height: 36px;\n        border-radius: 50%;\n        font-size: 12px;\n        cursor: pointer; }\n        .select-date tbody tr td.disabled {\n          color: #dce0e5;\n          cursor: default; }\n        .select-date tbody tr td.today {\n          color: #009688;\n          font-weight: bold; }\n        .select-date tbody tr td.selected {\n          background: #009688;\n          color: #fff; }\n        .select-date tbody tr td:not(.selected):not(.disabled):hover {\n          color: #fff;\n          position: relative;\n          z-index: 1; }\n        .select-date tbody tr td:not(.selected):not(.disabled):hover::after {\n          content: '';\n          display: block;\n          -webkit-animation: dateBackground .3s;\n                  animation: dateBackground .3s;\n          position: absolute;\n          background: rgba(0, 150, 136, 0.7);\n          width: 36px;\n          height: 36px;\n          -webkit-transform: translate3d(0, 0, 0);\n                  transform: translate3d(0, 0, 0);\n          border-radius: 50%;\n          z-index: -1;\n          top: 0; }\n\n.date-right,\n.date-left {\n  overflow: hidden; }\n\n.date-right .date-enter {\n  -webkit-animation: dateRight .5s;\n          animation: dateRight .5s; }\n\n.date-left .date-enter {\n  -webkit-animation: dateLeft .5s;\n          animation: dateLeft .5s; }\n\n@-webkit-keyframes dateLeft {\n  0% {\n    -webkit-transform: translateX(-40px); }\n  100% {\n    -webkit-transform: translateX(0); } }\n\n@-webkit-keyframes dateBackground {\n  0% {\n    -webkit-transform: scale(0.2);\n            transform: scale(0.2); }\n  100% {\n    -webkit-transform: scale(1);\n            transform: scale(1); } }\n\n@-webkit-keyframes dateRight {\n  0% {\n    -webkit-transform: translateX(40px); }\n  100% {\n    -webkit-transform: translateX(0); } }\n", ""]);
+	exports.push([module.id, ".select-date {\n  width: inherit;\n  border-collapse: collapse;\n  border-spacing: 0;\n  color: rgba(0, 0, 0, 0.87);\n  width: 300px;\n  margin: 0 auto;\n  text-align: center; }\n  .select-date .weekHeader {\n    display: -webkit-flex;\n    display: -ms-flexbox;\n    display: flex;\n    -webkit-justify-content: space-around;\n        -ms-flex-pack: distribute;\n            justify-content: space-around;\n    padding: 10px 0;\n    font-size: 12px; }\n  .select-date tbody {\n    display: block;\n    width: inherit;\n    margin-top: 10px; }\n    .select-date tbody tr {\n      display: -webkit-flex;\n      display: -ms-flexbox;\n      display: flex;\n      -webkit-justify-content: space-around;\n          -ms-flex-pack: distribute;\n              justify-content: space-around; }\n      .select-date tbody tr .not-current-month {\n        color: #a7b2bd;\n        opacity: 0;\n        height: 0;\n        cursor: default; }\n      .select-date tbody tr td {\n        width: 36px;\n        height: 36px;\n        margin: 2px 0;\n        display: inline-block;\n        line-height: 36px;\n        border-radius: 50%;\n        font-size: 12px;\n        cursor: pointer; }\n        .select-date tbody tr td.disabled {\n          color: rgba(0, 0, 0, 0.38);\n          cursor: default; }\n        .select-date tbody tr td.today {\n          color: #009688;\n          font-weight: bold; }\n        .select-date tbody tr td.selected {\n          background: #009688;\n          color: #fff; }\n        .select-date tbody tr td:not(.selected):not(.disabled):hover {\n          color: #fff;\n          position: relative;\n          z-index: 1; }\n        .select-date tbody tr td:not(.selected):not(.disabled):hover::after {\n          content: '';\n          display: block;\n          -webkit-animation: dateBackground .3s;\n                  animation: dateBackground .3s;\n          position: absolute;\n          background: rgba(0, 150, 136, 0.7);\n          width: 36px;\n          height: 36px;\n          -webkit-transform: translate3d(0, 0, 0);\n                  transform: translate3d(0, 0, 0);\n          border-radius: 50%;\n          z-index: -1;\n          top: 0; }\n\n.date-right,\n.date-left {\n  overflow: hidden; }\n\n.date-right .date-enter {\n  -webkit-animation: dateRight .5s;\n          animation: dateRight .5s; }\n\n.date-left .date-enter {\n  -webkit-animation: dateLeft .5s;\n          animation: dateLeft .5s; }\n\n@-webkit-keyframes dateLeft {\n  0% {\n    -webkit-transform: translateX(-40px); }\n  100% {\n    -webkit-transform: translateX(0); } }\n\n@-webkit-keyframes dateBackground {\n  0% {\n    -webkit-transform: scale(0.2);\n            transform: scale(0.2); }\n  100% {\n    -webkit-transform: scale(1);\n            transform: scale(1); } }\n\n@-webkit-keyframes dateRight {\n  0% {\n    -webkit-transform: translateX(40px); }\n  100% {\n    -webkit-transform: translateX(0); } }\n", ""]);
 
 	// exports
 
@@ -10763,12 +10962,13 @@
 	// </script>
 
 	// <style lang="scss">
+	// @import '../styles/_variables.scss';
 
 	// .select-date {
 	//   width: inherit;
 	//   border-collapse: collapse;
 	//   border-spacing: 0;
-	//   color: #4e647b;
+	//   color: $defaultColorPrimary;
 	//   width: 300px;
 	//   margin: 0 auto;
 	//   text-align: center;
@@ -10778,7 +10978,6 @@
 	//     justify-content: space-around;
 	//     padding: 10px 0;
 	//     font-size: 12px;
-	//     color: #a5a5a5;
 	//   }
 
 	//   tbody {
@@ -10808,17 +11007,17 @@
 	//         cursor: pointer;
 
 	//         &.disabled {
-	//           color: #dce0e5;
+	//           color: $defaultColorDisabled;
 	//           cursor: default;
 	//         }
 
 	//         &.today {
-	//           color: #009688;
+	//           color: $activeColor;
 	//           font-weight: bold;
 	//         }
 
 	//         &.selected {
-	//           background: #009688;
+	//           background: $activeColor;
 	//           color: #fff;
 	//         }
 
@@ -10910,7 +11109,17 @@
 
 	if (module.exports.__esModule) module.exports = module.exports.default
 	;(typeof module.exports === "function" ? module.exports.options : module.exports).template = __webpack_require__(44)
-
+	if (false) {(function () {  module.hot.accept()
+	  var hotAPI = require("vue-hot-reload-api")
+	  hotAPI.install(require("vue"), true)
+	  if (!hotAPI.compatible) return
+	  var id = "/Users/taowei/Documents/Vue-date-picker/src/components/pickYear.vue"
+	  if (!module.hot.data) {
+	    hotAPI.createRecord(id, module.exports)
+	  } else {
+	    hotAPI.update(id, module.exports, (typeof module.exports === "function" ? module.exports.options : module.exports).template)
+	  }
+	})()}
 
 /***/ },
 /* 41 */
@@ -10928,8 +11137,8 @@
 	if(false) {
 		// When the styles change, update the <style> tags
 		if(!content.locals) {
-			module.hot.accept("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-20e2880e&file=pickYear.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickYear.vue", function() {
-				var newContent = require("!!./../../../../../node_modules/css-loader/index.js!./../../../../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-20e2880e&file=pickYear.vue!./../../../../../node_modules/sass-loader/index.js!./../../../../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickYear.vue");
+			module.hot.accept("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-d723a164&file=pickYear.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickYear.vue", function() {
+				var newContent = require("!!./../../node_modules/css-loader/index.js!./../../node_modules/vue-loader/lib/style-rewriter.js?id=_v-d723a164&file=pickYear.vue!./../../node_modules/sass-loader/index.js!./../../node_modules/vue-loader/lib/selector.js?type=style&index=0!./pickYear.vue");
 				if(typeof newContent === 'string') newContent = [[module.id, newContent, '']];
 				update(newContent);
 			});
@@ -10947,7 +11156,7 @@
 
 
 	// module
-	exports.push([module.id, ".select-year {\n  overflow: hidden;\n  height: 290px;\n  padding-top: 10px;\n  overflow-y: scroll; }\n  .select-year::-webkit-scrollbar {\n    display: none; }\n  .select-year ol {\n    list-style: none;\n    padding: 0;\n    margin: 0; }\n    .select-year ol li {\n      font-size: 18px;\n      padding: 10px 0;\n      cursor: pointer; }\n      .select-year ol li.active {\n        font-size: 22px;\n        color: #009485;\n        font-weight: 800;\n        margin: 10px 0; }\n", ""]);
+	exports.push([module.id, ".select-year {\n  overflow: hidden;\n  height: 290px;\n  padding-top: 10px;\n  overflow-y: scroll; }\n  .select-year::-webkit-scrollbar {\n    display: none; }\n  .select-year ol {\n    list-style: none;\n    padding: 0;\n    margin: 0; }\n    .select-year ol li {\n      font-size: 18px;\n      padding: 10px 0;\n      cursor: pointer; }\n      .select-year ol li.active {\n        font-size: 22px;\n        color: #009688;\n        font-weight: 800;\n        margin: 10px 0; }\n", ""]);
 
 	// exports
 
@@ -11006,6 +11215,8 @@
 	// </script>
 
 	// <style lang="scss">
+	// @import '../styles/_variables.scss';
+
 	// .select-year {
 	//   overflow: hidden;
 	//   height: 290px;
@@ -11028,7 +11239,7 @@
 
 	//       &.active{
 	//         font-size:22px;
-	//         color:#009485;
+	//         color:$activeColor;
 	//         font-weight:800;
 	//         margin:10px 0;
 	//       }
@@ -11047,13 +11258,13 @@
 /* 45 */
 /***/ function(module, exports) {
 
-	module.exports = "<div class=\"date-picker\" v-if=\"show\" transition=\"date\">\n\n    <div class=\"date-picker-wrapper\">\n      <div class=\"date-picker-container\">\n\n        <!-- DatePick header -->\n        <date-header\n          :change-select-type.sync=\"toSelectYear\"\n          :selected-info=\"selectedInfo\"></date-header>\n\n        <!-- DatePick main select month and date -->\n        <div class=\"main\" v-if=\"!toSelectYear\">\n          <pick-month\n          :min-date=\"minDate\"\n          :max-date=\"maxDate\"\n          :current-info.sync=\"currentInfo\"\n          :current.sync=\"currentDate\"></pick-month>\n\n          <pick-date\n            :min-date=\"minDate\"\n            :max-date=\"maxDate\"\n            :current.sync=\"currentDate\"\n            :selected-date.sync=\"selectedDate\"></pick-date>\n        </div>\n\n        <!--  select year -->\n        <pick-year\n          v-if=\"toSelectYear\"\n          :year-arr=\"yearArr\"\n          :current.sync=\"currentDate\"\n          :selected-date.sync=\"selectedDate\"></pick-year>\n\n        <!-- DatePick footer -->\n        <date-footer> </date-footer>\n      </div>\n    <div>\n  </div>\n</template>";
+	module.exports = "<div class=\"date-picker\" v-if=\"show\" transition=\"date\">\n\n    <div class=\"date-picker-wrapper\" :style=\"{top:containerTop}\">\n\n      <div class=\"date-picker-container\" v-el:date-container>\n        <!-- DatePick header -->\n        <date-header\n          :change-select-type.sync=\"toSelectYear\"\n          :selected-info=\"selectedInfo\"></date-header>\n\n        <!-- DatePick main select month and date -->\n        <div class=\"main\" v-if=\"!toSelectYear\">\n          <pick-month\n          :min-date=\"minDate\"\n          :max-date=\"maxDate\"\n          :current-info.sync=\"currentInfo\"\n          :current.sync=\"currentDate\"></pick-month>\n\n          <pick-date\n            :min-date=\"minDate\"\n            :max-date=\"maxDate\"\n            :current.sync=\"currentDate\"\n            :selected-date.sync=\"selectedDate\"></pick-date>\n        </div>\n\n        <!--  select year -->\n        <pick-year\n          v-if=\"toSelectYear\"\n          :year-arr=\"yearArr\"\n          :current.sync=\"currentDate\"\n          :selected-date.sync=\"selectedDate\"></pick-year>\n\n        <!-- DatePick footer -->\n        <date-footer></date-footer>\n      </div>\n    <div>\n  </div>\n</template>";
 
 /***/ },
 /* 46 */
 /***/ function(module, exports) {
 
-	module.exports = "<div class=\"demo\" _v-2781b246=\"\">\n\n    <input v-model=\"selectedDate\" @focus=\"toggleShow\" class=\"form-control\" _v-2781b246=\"\">\n\n    <date-picker :show.sync=\"datePickerShow\" :selected-date-props.sync=\"selectedDate\" _v-2781b246=\"\"></date-picker>\n  </div>";
+	module.exports = "<div class=\"demo\" _v-472e6e29=\"\">\n\n    <input v-model=\"selectedDate\" @focus=\"toggleShow\" class=\"form-control\" _v-472e6e29=\"\">\n\n    <date-picker :show.sync=\"datePickerShow\" :selected-date-props.sync=\"selectedDate\" _v-472e6e29=\"\"></date-picker>\n  </div>";
 
 /***/ }
 /******/ ]);
