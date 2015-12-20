@@ -117,12 +117,13 @@ module.exports = {
 </script>
 
 <style lang="scss">
+@import '../styles/_variables.scss';
 
 .select-date {
   width: inherit;
   border-collapse: collapse;
   border-spacing: 0;
-  color: #4e647b;
+  color: $defaultColorPrimary;
   width: 300px;
   margin: 0 auto;
   text-align: center;
@@ -132,7 +133,6 @@ module.exports = {
     justify-content: space-around;
     padding: 10px 0;
     font-size: 12px;
-    color: #a5a5a5;
   }
 
   tbody {
@@ -162,17 +162,17 @@ module.exports = {
         cursor: pointer;
 
         &.disabled {
-          color: #dce0e5;
+          color: $defaultColorDisabled;
           cursor: default;
         }
 
         &.today {
-          color: #009688;
+          color: $activeColor;
           font-weight: bold;
         }
 
         &.selected {
-          background: #009688;
+          background: $activeColor;
           color: #fff;
         }
 

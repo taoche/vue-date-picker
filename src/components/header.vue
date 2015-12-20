@@ -70,10 +70,12 @@ module.exports = {
 </script>
 
 <style lang="scss">
+@import '../styles/_variables.scss';
+
 .header {
-  background: #009688;
+  background: $activeColor;
   padding: 20px;
-  color: rgba(#fff, .7);
+  color: $headerBaseColor;
   height: 72px;
   text-align: left;
   h4,
@@ -94,6 +96,7 @@ module.exports = {
     height: 40px;
     margin: 15px 0 0 0;
     overflow: hidden;
+
     h2 {
       font-size: 36px;
       margin: 0;

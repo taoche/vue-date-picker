@@ -21,6 +21,7 @@ module.exports = {
 </script>
 
 <style lang="scss">
+@import '../styles/_variables.scss';
 .footer {
   padding: 15px 10px 10px 10px;
   text-align: right;
@@ -28,12 +29,13 @@ module.exports = {
   button {
     border: none;
     color: red;
-    color: #009688;
+    color: $activeColor;
     background: transparent;
     cursor: pointer;
     padding: 8px 20px;
 
     &:hover {
+      color: #fff;
       animation: btn-fade-in .5s ease both;
     }
 
