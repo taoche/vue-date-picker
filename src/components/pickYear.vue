@@ -11,18 +11,18 @@
 
 <script>
 module.exports = {
-  name: 'pick-year',
-  props: ['yearArr','current','selectedDate'],
+  name  : 'pick-year',
+  props : ['yearArr','current','selectedDate'],
 
-  computed:{
-    selectedYear(){
+  computed : {
+    selectedYear () {
       return this.selectedDate.getFullYear()
     }
   },
-  watch:{
-    selectedDate(){
+  watch : {
+    selectedDate () {
       this.$nextTick(() => {
-       this.positionActive();
+       this.positionActive()
       })
     }
   },
@@ -33,13 +33,13 @@ module.exports = {
 
   methods:{
 
-    changeActiveYear(year){
+    changeActiveYear (year) {
       this.current = this.selectedDate = new Date(this.selectedDate.setYear(year))
     },
 
-    positionActive(){
+    positionActive () {
       let $target = this.$el.querySelector('.active');
-      this.$el.scrollTop = ($target.offsetTop-this.$el.offsetTop)-$target.offsetHeight*3;
+      this.$el.scrollTop = ($target.offsetTop - this.$el.offsetTop) - $target.offsetHeight * 3
     }
   }
 }

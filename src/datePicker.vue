@@ -60,15 +60,15 @@ module.exports = {
     }
   },
 
-  watch:{
-    show(){
+  watch : {
+    show () {
       this.$nextTick(() => {
-        this.containerTop = (window.innerHeight - this.$els.dateContainer.offsetHeight)/2 + 'px';
+        this.containerTop = (window.innerHeight - this.$els.dateContainer.offsetHeight)/2 + 'px'
       })
     }
   },
 
-  data() {
+  data () {
     return {
       selectedDate : !(this.selectedDateProps instanceof Date) ? new Date(this.selectedDateProps):this.selectedDateProps,
       currentDate  : new Date(),
@@ -84,7 +84,7 @@ module.exports = {
     },
 
     selectedInfo() {
-      let dateArr = new Date(this.selectedDate).toDateString().split(' ');
+      let dateArr = new Date(this.selectedDate).toDateString().split(' ')
 
       return {
         day   : dateArr[0],
@@ -106,38 +106,38 @@ module.exports = {
     }
   },
 
-  events:{
-    'date-picker-hide':function(){
+  events : {
+    'date-picker-hide' () {
       this.show = false;
     },
 
-    'date-picker-sure':function(){
+    'date-picker-sure' () {
       this.selectedDateProps = this.dateFormat(this.selectedDate);
       this.show = false
     }
   },
 
-  methods: {
+  methods : {
 
-    firstDayOfMonth(date) {
-      if (!(date instanceof Date)) date = new Date(date);
-      return new Date(date.getFullYear(), date.getMonth(), 1);
+    firstDayOfMonth (date) {
+      if (!(date instanceof Date)) date = new Date(date)
+      return new Date(date.getFullYear(), date.getMonth(), 1)
     },
 
-    getYearArr(){
+    getYearArr () {
       let miniYear = new Date(this.minDate).getFullYear(),
           maxYear  = new Date(this.maxDate).getFullYear();
 
-      let yearArr = [];
+      let yearArr = []
 
       for (var i = 0, len = maxYear - miniYear + 1; i < len; i++) {
         yearArr.push(miniYear + i)
       }
 
-      return yearArr;
+      return yearArr
     },
 
-    dateFormat(date) {
+    dateFormat (date) {
       return new Date(date).toLocaleDateString().split('/').map(function(item){
         if(item < 10){
           item  = '0' + item
@@ -146,16 +146,16 @@ module.exports = {
       }).join('-')
     },
 
-    getMonthName(month) {
+    getMonthName (month) {
       var monthNames = ['January', 'February', 'March', 'April', 'May', 'June',
         'July', 'August', 'September', 'October', 'November', 'December'
       ];
 
-      return monthNames[month];
+      return monthNames[month]
     }
   },
 
-  components: {
+  components : {
     'date-header' : require('./components/header.vue'),
     'date-footer' : require('./components/footer.vue'),
     'pick-month'  : require('./components/pickMonth.vue'),

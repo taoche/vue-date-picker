@@ -10,9 +10,11 @@
 
     <div class="date">
       <h2 @click="changeMonthSelect" :class="{
-          'active'   : !changeSelectType,
-          'ani-up'   : turnType==='up',
-          'ani-down' : turnType==='down'}">{{selectedInfo.day}}, {{selectedInfo.month}} {{selectedInfo.date}}</h2>
+        'active'   : !changeSelectType,
+        'ani-up'   : turnType==='up',
+        'ani-down' : turnType==='down'}">
+        {{selectedInfo.day}}, {{selectedInfo.month}} {{selectedInfo.date}}
+      </h2>
     </div>
 
   </header>
@@ -20,16 +22,16 @@
 
 <script>
 module.exports = {
-  name: 'date-pick-header',
-  props: ['changeSelectType', 'selectedInfo'],
+  name : 'date-pick-header',
+  props : ['changeSelectType', 'selectedInfo'],
 
-  data() {
+  data () {
     return {
       turnType: null
     }
   },
 
-  watch: {
+  watch : {
     selectedInfo(newVal, oldVal) {
       let newValDate = [newVal.year, newVal.month, newVal.date].join(''),
           oldValDate = [oldVal.year, oldVal.month, oldVal.date].join('');
@@ -44,20 +46,20 @@ module.exports = {
     }
   },
 
-  ready() {
+  ready () {
     this.animationEndFn()
   },
 
-  methods: {
-    changeYearSelect() {
+  methods : {
+    changeYearSelect () {
       this.changeSelectType = true;
     },
 
-    changeMonthSelect() {
+    changeMonthSelect () {
       this.changeSelectType = false;
     },
 
-    animationEndFn() {
+    animationEndFn () {
       let $target = this.$el.querySelector('h2');
 
       $target.addEventListener('animationend', (event) => {

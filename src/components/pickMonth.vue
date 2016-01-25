@@ -14,40 +14,41 @@
 
 <script>
 module.exports = {
-  name: 'pick-month',
-  props: ['currentInfo', 'minDate', 'maxDate','current'],
+  name : 'pick-month',
+  props : ['currentInfo', 'minDate', 'maxDate','current'],
 
-  methods: {
+  methods : {
 
-    prevMonth(event) {
-      if(event.target.classList.contains('disabled')) return false;
+    prevMonth (event) {
+      if(event.target.classList.contains('disabled')) return false
 
-      this.current = this.addMonth(this.current, -1);
+      this.current = this.addMonth(this.current, -1)
     },
 
     nextMonth(event) {
-      if(event.target.classList.contains('disabled')) return false;
-      this.current = this.addMonth(this.current, +1);
+      if (event.target.classList.contains('disabled')) return false
+      this.current = this.addMonth(this.current, +1)
     },
 
-    disableControl(control) {
+    disableControl (control) {
       let testDate    = new Date(this.current),
           addMonthNum = 0;
 
-      if (control === 'prevMonth') addMonthNum = -1;
-      if (control === 'nextMonth') addMonthNum = 1;
+      if (control === 'prevMonth') addMonthNum = -1
+      if (control === 'nextMonth') addMonthNum = 1
 
       return !this.checkIsEnabled(this.addMonth(testDate, addMonthNum));
     },
 
-    checkIsEnabled(date) {
-      return  date.setDate(30) > new Date(this.minDate) && date.setDate(1) < new Date(this.maxDate)
+    checkIsEnabled (date) {
+      return date.setDate(30) > new Date(this.minDate) && date.setDate(1) < new Date(this.maxDate)
     },
 
-    addMonth(date, number) {
-      number = number || 1;
-      date = new Date(date);
-      return new Date(date.setMonth(date.getMonth() + number));
+    addMonth (date, number) {
+      number = number || 1
+      date = new Date(date)
+
+      return new Date(date.setMonth(date.getMonth() + number))
     }
   }
 }
